@@ -1,0 +1,50 @@
+pipeline{
+    agent any
+     tools{
+         maven "Maven"
+     }
+     stages{
+         stage("code checkout"){
+             steps{
+                 git branch: 'main', url: 'https://github.com/satyanukeshkollapureddy/CICD-Project.git'
+             }
+         }
+         stage("build the code"){
+             steps{
+                 sh 'mvn clean install -f MyWebApp/pom.xml'
+             }
+         }
+         stage("code-coverage"){
+             steps{
+                 junit '**/target/surefire-reports/*.xml'
+                 jacoco()
+             }
+         }
+         
+         stage("code-analysis"){
+             steps{
+                withSonarQubeEnv('SonarQube') {
+                    sh 'mvn sonar:sonar -f MyWebApp/pom.xml'
+  
+                } 
+             }
+         }
+         stage("artifact uploader"){
+             steps{
+                 
+                 nexusArtifactUploader artifacts: [[artifactId: 'MyWebApp', classifier: '', file: 'MyWebApp/target/MyWebApp.war', type: '.war']], credentialsId: 'Nexus', groupId: 'com.dept.app', nexusUrl: '98.81.131.115:8081', nexusVersion: 'nexus3', protocol: 'http', repository: 'MyApp', version: '1.0-SNAPSHOT'
+             }
+         }
+         stage("deployment"){
+             steps{
+                 deploy adapters: [tomcat9(alternativeDeploymentContext: '', credentialsId: 'Tomcat', path: '', url: 'http://34.228.79.80:8080')], contextPath: 'Sandeep', war: '**/*.war'
+             }
+         }
+         stage("slack-notification"){
+             steps{
+                 slackSend channel: 'sanChannel', message: 'Hi Team, i have deployed the application'
+             }
+         }
+    
+}
+}
